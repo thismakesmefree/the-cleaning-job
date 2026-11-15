@@ -184,7 +184,32 @@ export default function App() {
   const keysRef = useRef(new Set());
   const fireRef = useRef(false);
   const aimRef = useRef({ x: 480, y: 270 });
+  const artRef = useRef({});
   const { ensureContext, playSound } = useSynthAudio();
+
+  useEffect(() => {
+    const sources = {
+      marsBackground: '/art/mars-backdrop.png',
+      protagonist: '/art/ares-protagonist.png',
+      footSoldier: '/art/alien-foot-soldier.png',
+      cyborg: '/art/armored-cyborg.png',
+      hivemind: '/art/hivemind-general.png',
+    };
+    const images = Object.entries(sources).map(([name, src]) => {
+      const image = new Image();
+      image.onerror = () => console.warn(`Could not load ${src}; using the procedural fallback.`);
+      image.src = src;
+      artRef.current[name] = image;
+      return image;
+    });
+
+    return () => {
+      for (const image of images) {
+        image.onload = null;
+        image.onerror = null;
+      }
+    };
+  }, []);
 
   const beginFlight = useCallback(() => {
     setDebrief(null);
@@ -248,7 +273,7 @@ export default function App() {
           setStage(nextStage);
         },
       });
-      drawWorld(ctx, world);
+      drawWorld(ctx, world, artRef.current);
       if (world.transition > 0) {
         ctx.fillStyle = 'rgba(4, 9, 15, .84)';
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
