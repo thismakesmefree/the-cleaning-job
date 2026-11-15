@@ -303,13 +303,13 @@ export function updateWorld(world, dt, controls, callbacks) {
   return world;
 }
 
-function drawStars(ctx, time, warm = false) {
+function drawStars(ctx, time, warm = false, maxY = HEIGHT) {
   for (let i = 0; i < 80; i += 1) {
     const x = ((i * 137 + time * (8 + (i % 5) * 4)) % (WIDTH + 20)) - 10;
-    const y = (i * 79) % HEIGHT;
-    ctx.globalAlpha = 0.25 + (i % 4) * 0.13;
+    const y = (i * 79) % maxY;
+    ctx.globalAlpha = 0.2 + ((Math.sin(time * 1.8 + i) + 1) * 0.5) * 0.55;
     ctx.fillStyle = warm && i % 5 === 0 ? '#ffb77a' : '#d8edff';
-    ctx.fillRect(x, y, i % 9 === 0 ? 2 : 1, i % 9 === 0 ? 2 : 1);
+    ctx.fillRect(Math.floor(x), Math.floor(y), i % 9 === 0 ? 2 : 1, i % 9 === 0 ? 2 : 1);
   }
   ctx.globalAlpha = 1;
 }
@@ -360,71 +360,99 @@ function drawAsteroid(ctx, asteroid) {
   ctx.restore();
 }
 
-function drawMars(ctx, time) {
-  const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  sky.addColorStop(0, '#151c31');
-  sky.addColorStop(0.55, '#783d43');
-  sky.addColorStop(1, '#e17645');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  ctx.fillStyle = '#f4a16d';
-  ctx.globalAlpha = 0.88;
-  ctx.beginPath();
-  ctx.arc(755, 145, 52, 0, Math.PI * 2);
-  ctx.fill();
+function drawMars(ctx, time, background) {
+  if (background?.complete && background.naturalWidth > 0) {
+    const drift = Math.sin(time * 0.055) * 12;
+    ctx.drawImage(background, drift - 12, -5, WIDTH + 24, HEIGHT + 10);
+    ctx.fillStyle = 'rgba(189, 71, 48, .08)';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  } else {
+    const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    sky.addColorStop(0, '#151c31');
+    sky.addColorStop(0.55, '#783d43');
+    sky.addColorStop(1, '#e17645');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = '#f4a16d';
+    ctx.globalAlpha = 0.88;
+    ctx.beginPath();
+    ctx.arc(755, 145, 52, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#752f35';
+    ctx.beginPath();
+    ctx.moveTo(0, 396);
+    for (let x = 0; x <= WIDTH; x += 60) ctx.lineTo(x, 380 + Math.sin(x * 0.014 + time * 0.08) * 18);
+    ctx.lineTo(WIDTH, HEIGHT);
+    ctx.lineTo(0, HEIGHT);
+    ctx.fill();
+    ctx.fillStyle = '#ac5141';
+    ctx.beginPath();
+    ctx.moveTo(0, 440);
+    for (let x = 0; x <= WIDTH; x += 48) ctx.lineTo(x, 438 + Math.sin(x * 0.018 + time * 0.12) * 9);
+    ctx.lineTo(WIDTH, HEIGHT);
+    ctx.lineTo(0, HEIGHT);
+    ctx.fill();
+    ctx.fillStyle = '#d16c48';
+    ctx.fillRect(0, 478, WIDTH, 62);
+  }
+
+  drawStars(ctx, time, true, 225);
+
+  for (let i = 0; i < 34; i += 1) {
+    const x = (i * 173 + time * (13 + (i % 4) * 5)) % WIDTH;
+    const y = 342 + ((i * 47) % 178);
+    ctx.globalAlpha = 0.2 + (i % 3) * 0.12;
+    ctx.fillStyle = i % 4 === 0 ? '#ffd17d' : '#ff9864';
+    ctx.fillRect(Math.floor(x), y, 1 + (i % 3), 1);
+  }
   ctx.globalAlpha = 1;
-  drawStars(ctx, time, true);
-  ctx.fillStyle = '#752f35';
-  ctx.beginPath();
-  ctx.moveTo(0, 396);
-  for (let x = 0; x <= WIDTH; x += 60) ctx.lineTo(x, 380 + Math.sin(x * 0.014 + time * 0.08) * 18);
-  ctx.lineTo(WIDTH, HEIGHT);
-  ctx.lineTo(0, HEIGHT);
-  ctx.fill();
-  ctx.fillStyle = '#ac5141';
-  ctx.beginPath();
-  ctx.moveTo(0, 440);
-  for (let x = 0; x <= WIDTH; x += 48) ctx.lineTo(x, 438 + Math.sin(x * 0.018 + time * 0.12) * 9);
-  ctx.lineTo(WIDTH, HEIGHT);
-  ctx.lineTo(0, HEIGHT);
-  ctx.fill();
-  ctx.fillStyle = '#d16c48';
-  ctx.fillRect(0, 478, WIDTH, 62);
-  ctx.strokeStyle = 'rgba(255,215,164,.28)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, 480);
-  ctx.lineTo(WIDTH, 480);
-  ctx.stroke();
 }
 
-function drawHero(ctx, player, time) {
+function drawHero(ctx, player, time, sprite) {
   ctx.save();
   ctx.translate(player.x, player.y);
+  if (player.facing < 0) ctx.scale(-1, 1);
   if (player.invulnerable > 0 && Math.floor(time * 20) % 2 === 0) ctx.globalAlpha = 0.38;
+  const bob = Math.abs(player.vx) > 0 ? Math.sin(time * 12) * 2 : Math.sin(time * 3) * 1;
+  if (sprite?.complete && sprite.naturalWidth > 0) {
+    ctx.drawImage(sprite, -38, -72 + bob, 76, 72);
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = '#162538';
-  ctx.fillRect(-12, -48, 25, 38);
+  ctx.fillRect(-12, -48 + bob, 25, 38);
   ctx.fillStyle = '#d5e1e9';
-  ctx.fillRect(-11, -56, 23, 12);
+  ctx.fillRect(-11, -56 + bob, 23, 12);
   ctx.fillStyle = '#6ae8fa';
   ctx.shadowBlur = 12;
   ctx.shadowColor = '#47d8ff';
-  ctx.fillRect(player.facing === 1 ? 2 : -10, -53, 12, 6);
+  ctx.fillRect(2, -53 + bob, 12, 6);
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#a9bdc8';
-  ctx.fillRect(-15, -12, 12, 10);
-  ctx.fillRect(4, -12, 12, 10);
+  ctx.fillRect(-15, -12 + bob, 12, 10);
+  ctx.fillRect(4, -12 + bob, 12, 10);
   ctx.fillStyle = '#53ddff';
-  ctx.fillRect(player.facing === 1 ? 7 : -19, -36, 22, 7);
+  ctx.fillRect(7, -36 + bob, 22, 7);
   ctx.fillStyle = '#f7a94e';
-  ctx.fillRect(-13, -2, 11, 3);
-  ctx.fillRect(2, -2, 11, 3);
+  ctx.fillRect(-13, -2 + bob, 11, 3);
+  ctx.fillRect(2, -2 + bob, 11, 3);
   ctx.restore();
 }
 
-function drawEnemy(ctx, enemy) {
+function drawEnemy(ctx, enemy, playerX, footSprite, cyborgSprite) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
+  if (enemy.x > playerX) ctx.scale(-1, 1);
+  const sprite = enemy.type === 'cyborg' ? cyborgSprite : footSprite;
+  if (sprite?.complete && sprite.naturalWidth > 0) {
+    const width = enemy.type === 'cyborg' ? 70 : 74;
+    const height = enemy.type === 'cyborg' ? 78 : 82;
+    ctx.filter = enemy.flash > 0 ? 'brightness(0) invert(1)' : 'none';
+    ctx.drawImage(sprite, -width / 2, -height, width, height);
+    ctx.restore();
+    return;
+  }
   const isCyborg = enemy.type === 'cyborg';
   ctx.fillStyle = enemy.flash > 0 ? '#ffffff' : isCyborg ? '#647787' : '#70904f';
   ctx.strokeStyle = isCyborg ? '#c8e7f2' : '#b5c77a';
@@ -441,10 +469,16 @@ function drawEnemy(ctx, enemy) {
   ctx.restore();
 }
 
-function drawBoss(ctx, boss, time) {
+function drawBoss(ctx, boss, time, sprite) {
   if (!boss || boss.hp <= 0) return;
   ctx.save();
   ctx.translate(boss.x, boss.y + Math.sin(time * 3) * 7);
+  if (sprite?.complete && sprite.naturalWidth > 0) {
+    ctx.filter = boss.hitFlash > 0 ? 'brightness(0) invert(1)' : 'none';
+    ctx.drawImage(sprite, -66, -66, 132, 132);
+    ctx.restore();
+    return;
+  }
   ctx.shadowBlur = 28;
   ctx.shadowColor = '#be52ff';
   ctx.fillStyle = boss.hitFlash > 0 ? '#fff' : '#493364';
@@ -473,7 +507,7 @@ function drawBoss(ctx, boss, time) {
   ctx.restore();
 }
 
-export function drawWorld(ctx, world) {
+function drawWorldScene(ctx, world, art) {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   if (world.stage === GAME_STATES.LEVEL_0_ASTEROIDS) {
     const background = ctx.createLinearGradient(0, 0, 0, HEIGHT);
@@ -495,10 +529,12 @@ export function drawWorld(ctx, world) {
       ctx.fillRect(bullet.x, bullet.y - 2, 18, 4);
     }
   } else {
-    drawMars(ctx, world.marsTime);
-    for (const enemy of world.enemies) drawEnemy(ctx, enemy);
-    drawBoss(ctx, world.boss, world.marsTime);
-    drawHero(ctx, world.player, world.marsTime);
+    drawMars(ctx, world.marsTime, art.marsBackground);
+    for (const enemy of world.enemies) {
+      drawEnemy(ctx, enemy, world.player.x, art.footSoldier, art.cyborg);
+    }
+    drawBoss(ctx, world.boss, world.marsTime, art.hivemind);
+    drawHero(ctx, world.player, world.marsTime, art.protagonist);
     for (const bullet of world.bullets) {
       ctx.shadowBlur = 18;
       ctx.shadowColor = '#77f3ff';
@@ -528,4 +564,27 @@ export function drawWorld(ctx, world) {
     ctx.fillStyle = `rgba(130, 225, 255, ${world.flash * 0.65})`;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
   }
+}
+
+const pixelBuffers = new WeakMap();
+
+export function drawWorld(ctx, world, art = {}) {
+  let buffer = pixelBuffers.get(ctx);
+  if (!buffer) {
+    const canvas = ctx.canvas.ownerDocument.createElement('canvas');
+    canvas.width = WIDTH / 3;
+    canvas.height = HEIGHT / 3;
+    buffer = { canvas, context: canvas.getContext('2d') };
+    pixelBuffers.set(ctx, buffer);
+  }
+
+  buffer.context.setTransform(1 / 3, 0, 0, 1 / 3, 0, 0);
+  buffer.context.imageSmoothingEnabled = false;
+  drawWorldScene(buffer.context, world, art);
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  ctx.drawImage(buffer.canvas, 0, 0, WIDTH, HEIGHT);
+  ctx.restore();
 }
